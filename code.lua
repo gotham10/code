@@ -155,8 +155,14 @@ if _G.AutoHopCount < Config.MaxHops then
         if player == LocalPlayer then
             log("Teleport", string.format("TELEPORT FAILED! Result: %s, Message: %s", tostring(result), errorMessage))
             
-            if result == Enum.TeleportResult.GameFull or result == Enum.TeleportResult.Flooded then
-                log("RetryLogic", "Server was full. Finding another server...")
+            local recoverableErrors = {
+                [Enum.TeleportResult.GameFull] = true,
+                [Enum.TeleportResult.Flooded] = true,
+                [Enum.TeleportResult.Unauthorized] = true
+            }
+
+            if recoverableErrors[result] then
+                log("RetryLogic", "Encountered a recoverable teleport error. Finding another server...")
                 task.wait(2)
                 attemptHop()
             else
