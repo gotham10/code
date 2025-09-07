@@ -80,7 +80,7 @@ else
     _G.VisitedServers[JobId] = true
     log("State", "Current server marked as visited.")
 
-    local teleportFailedConn
+    local sessionAttemptedServers = {}
     
     local function getBestServer(ignoreList)
         local requestUrl = "https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
@@ -128,17 +128,26 @@ else
         return bestServerId
     end
 
-    local function attemptHop()
-        local targetServer
-        while not targetServer do
-            targetServer = getBestServer(_G.VisitedServers)
-            if not targetServer then
-                log("State", "All available servers have been visited. Resetting list and retrying.")
-                _G.VisitedServers = {[JobId] = true}
-                task.wait(2)
-            end
+    local findAndJoinNextServer
+    local teleportFailedConn
+
+    findAndJoinNextServer = function()
+        local fullIgnoreList = {}
+        for id in pairs(_G.VisitedServers) do fullIgnoreList[id] = true end
+        for id in pairs(sessionAttemptedServers) do fullIgnoreList[id] = true end
+
+        local targetServer = getBestServer(fullIgnoreList)
+        
+        if not targetServer then
+            log("State", "All available servers attempted or visited. Resetting lists and retrying.")
+            _G.VisitedServers = {[JobId] = true}
+            sessionAttemptedServers = {}
+            task.wait(2)
+            findAndJoinNextServer()
+            return
         end
         
+        sessionAttemptedServers[targetServer] = true
         log("Teleport", string.format("Attempting to teleport to server: %s", targetServer))
         
         local scriptToQueue = string.format('loadstring(game:HttpGet("%s"))()', Config.ScriptUrl)
@@ -148,14 +157,13 @@ else
         TeleportService:TeleportToPlaceInstance(PlaceId, targetServer, LocalPlayer)
     end
 
-    teleportFailedConn = TeleportService.TeleportInitFailed:Connect(function(player, result, errorMessage)
+    teleportFailedConn = TeleportService.TeleportInitFailed:Connect(function(player)
         if player == LocalPlayer then
-            log("Teleport", string.format("TELEPORT FAILED! Result: %s, Message: %s", tostring(result), errorMessage))
-            log("RetryLogic", "Encountered a teleport error. Finding another server immediately...")
+            log("RetryLogic", "Teleport failed. Finding another server immediately...")
             task.wait(1)
-            attemptHop()
+            findAndJoinNextServer()
         end
     end)
     
-    attemptHop()
+    findAndJoinNextServer()
 end
