@@ -96,15 +96,15 @@ else
             else
                 local reason = "pcall failed"
                 if success and response then reason = "Status Code: " .. response.StatusCode end
-                log("WARN", string.format("API fetch failed. Reason: %s. Retrying in 15 seconds...", reason))
-                task.wait(15)
+                log("WARN", string.format("API fetch failed. Reason: %s. Retrying in 3 seconds...", reason))
+                task.wait(3)
             end
         end
 
         local success, body = pcall(function() return HttpService:JSONDecode(responseBody) end)
         if not (success and body and body.data) then
             log("ERROR", "Failed to decode server list JSON. Retrying...")
-            task.wait(5)
+            task.wait(3)
             return nil
         end
         
@@ -135,7 +135,7 @@ else
             if not targetServer then
                 log("State", "All available servers have been visited. Resetting list and retrying.")
                 _G.VisitedServers = {[JobId] = true}
-                task.wait(5)
+                task.wait(2)
             end
         end
         
@@ -152,7 +152,7 @@ else
         if player == LocalPlayer then
             log("Teleport", string.format("TELEPORT FAILED! Result: %s, Message: %s", tostring(result), errorMessage))
             log("RetryLogic", "Encountered a teleport error. Finding another server immediately...")
-            task.wait(2)
+            task.wait(1)
             attemptHop()
         end
     end)
